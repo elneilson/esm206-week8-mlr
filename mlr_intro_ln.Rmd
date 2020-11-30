@@ -1,0 +1,111 @@
+---
+title: "ESM 206 Week 8 Coding Lab (Multiple Linear Regression"
+author: "Larissa Neilson"
+date: "11/29/2020"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(tidyverse)
+library(palmerpenguins)
+library(GGally)
+library(broom)
+library(kableExtra)
+library(stargazer)
+```
+
+# Explore the **penguins** data
+
+## Pair plots with `GGally` 
+
+```{r, message = FALSE, warning = FALSE}
+ggpairs(penguins)
+```
+
+Does that seem like too much? It IS. Let’s narrow it down a bit, for example to only the continuous variables (these are the variables we’re usually most concerned about linearity between re: assumptions).
+
+```{r, message = FALSE, warning = FALSE}
+penguins %>% 
+  select(species, bill_length_mm:body_mass_g) %>% 
+  ggpairs(aes(color = species))
+```
+
+The resulting matrix gives us a LOT of information about distributions within groups (the histograms is column 1, boxplots in row 1, and density plots along the diagonal), and relationships (the scatterplots below the diagonal, and the correlation values above the diagonal).
+
+Most importantly, it looks like there aren’t notable non-linear relationships existing within species between any of the continuous variables (in the scatterplots).
+
+# Multiple liner regression
+
+## Build your model
+
+In this example, we will model penguin mass to see how it changes with respect to three predictor variables: flipper length, penguin species, and penguin sex. 
+
+```{r}
+penguin_lm <- lm(body_mass_g ~ flipper_length_mm + species + sex, data = penguins)
+
+# Take a look at the result
+summary(penguin_lm)
+```
+
+## Interpreting the model results
+
+Use `broom::tidy()` to get information about the coefficients in a more manageable format
+
+```{r}
+penguin_lm_tidy <- tidy(penguin_lm)
+
+# Return it
+penguin_lm_tidy
+```
+
+**Intercept**: This coefficient value (-365.8) is not meaningful to interpret here on its own (though should still be included when making predictions). Technically, it is the expected mass of a penguin with flipper length of 0 mm. Often, the intercept is not useful to consider on its own (and reflects limits to how far we should extrapolate our model results beyond our observed data).
+
+**flipper_length_mm**: The coefficient for flipper length (20) is the average change we expect to see in body mass (grams) for a 1 mm increase in flipper length.
+
+**speciesChinstrap**: Since the reference species in this model is Adélie, the coefficient for Chinstrap here (-87.6) tells us that on average, we expect Chinstrap penguins to weigh 87.6 g less than Adélie penguins if other variables are fixed.
+
+**speciesGentoo**: Similarly, this coefficient is interpreted with respect to the reference species Adélie. The Gentoo coefficient (836.3) tells us that on average, we expect Gentoo penguins to weigh 836.3 g more than Adélie penguins if other variables are fixed.
+
+**sexmale**: This coefficient is also for a categorical variable (where female is the reference level). We interpret the coefficient for sexmale (530.4) as follows: if penguins are consistent across all other variables, we expect a male penguin to weigh 530.4 g more than a female penguin, on average.
+
+## Overall model fit and significance
+
+```{r}
+penguin_lm_fit <- glance(penguin_lm)
+
+# Return output:
+penguin_lm_fit
+```
+
+# Model diagnostics
+
+```{r}
+plot(penguin_lm)
+```
+
+Residuals are very normally distributed (from the QQ plot)
+Residuals variance is relatively constant across fitted values of the model, indicating homoscedasticity
+No notable outliers with disproportionate leverage on the model results (as seen from the Cook’s distance graph)
+Overall takeaway: no concerns about assumption violations based on these diagnostic plots.
+
+# Communicate results of your model
+
+## A `kable` table
+
+```{r}
+penguin_lm_tidy %>% 
+  kable(col.names = c("Term",
+                      "Estimate",
+                      "St Error",
+                      "t-statistic",
+                      "p-value")) %>% 
+  kable_styling(full_width = FALSE)
+```
+
+## The `stargazer` package
+
+```{r, results = "asis"}
+stargazer(penguin_lm, type = "html")
+```
+
